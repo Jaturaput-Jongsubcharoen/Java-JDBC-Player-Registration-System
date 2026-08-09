@@ -1,88 +1,173 @@
 # Java JDBC Player Registration System
 
-A desktop data-management application that demonstrates clean JavaFX UI workflows and JDBC integration with Oracle SQL.
+[![CI](https://github.com/Jaturaput-Jongsubcharoen/Java-JDBC-Player-Registration-System/actions/workflows/ci.yml/badge.svg)](https://github.com/Jaturaput-Jongsubcharoen/Java-JDBC-Player-Registration-System/actions/workflows/ci.yml)
 
-The project is organized as a portfolio-ready codebase focused on maintainability, secure database configuration practices, and clear technical documentation.
+A JavaFX desktop application for managing players, games, and player-game results with a layered JDBC architecture. The codebase is organized for maintainability and portfolio-grade engineering practices, including automated tests and GitHub Actions CI.
 
-## Project Overview
+## Key Features
 
-This application manages player and game records. It uses JavaFX for the user interface and JDBC prepared statements for database interactions.
+- JavaFX desktop UI for create, update, delete, and reporting workflows
+- Layered architecture: UI -> service -> DAO -> connection manager -> database
+- JDBC `PreparedStatement` usage for parameterized SQL operations
+- Transactional service workflows for multi-table consistency
+- Config-driven database connectivity via `database/db.properties`
+- Automated tests with JUnit 5 and H2 in Oracle compatibility mode
+- CI workflow that runs Maven tests on pull requests and pushes to `main`
 
-Core use cases:
+## Technology Stack
 
-- Create player records
-- Create game records
-- Update player information
-- Display player information
-- Execute SQL queries through prepared statements
-- Display query results in JavaFX tables
-
-## Features
-
-- JavaFX desktop interface for data entry and viewing
-- JDBC-based Oracle SQL integration
-- Prepared statements for safer query execution
-- CRUD-style operations for core entities
-- Structured project layout for portfolio presentation
-
-## Technologies Used
-
-- Java
-- JavaFX
+- Java 17
+- JavaFX 21
+- Maven
 - JDBC
-- Oracle SQL
-- Git
-- GitHub
+- Oracle SQL (production/local runtime target)
+- H2 (test database in Oracle compatibility mode)
+- JUnit 5
+- GitHub Actions
 
-## Repository Structure
+## Architecture
 
+High-level flow:
+
+- JavaFX UI (`Main`) orchestrates user interactions
+- Service layer (`PlayerRegistrationService`) manages business workflows and transactions
+- DAO layer (`PlayerDao`, `GameDao`, `PlayerGameDao`) executes SQL
+- `DatabaseConnectionManager` handles configuration loading and JDBC connections
+- Oracle database stores runtime application data
+
+```mermaid
+flowchart LR
+		UI[JavaFX UI\nMain] --> SERVICE[Service Layer\nPlayerRegistrationService]
+		SERVICE --> DAO[DAO Layer\nPlayerDao / GameDao / PlayerGameDao]
+		DAO --> DCM[DatabaseConnectionManager]
+		DCM --> DB[(Oracle Database)]
+
+		TESTS[JUnit 5 Tests] --> H2[H2 in Oracle Mode]
+		TESTS --> SERVICE
+		TESTS --> DAO
 ```
-src/
-docs/
+
+## Project Structure
+
+```text
+.github/workflows/ci.yml
 database/
-screenshots/
-README.md
-.gitignore
-LICENSE
+	db.properties.example
+	db.test.properties
+	schema.sql
+	sample-data.sql
+docs/
+	database-schema.md
+src/
+	main/
+		java/playerregistration/
+			Main.java
+			service/
+			dao/
+			database/
+	test/
+		java/playerregistration/
+			service/
+			dao/
+			testsupport/
 ```
 
-## Installation Instructions
+Important components:
 
-1. Clone the repository.
-2. Ensure Java (JDK 17+ recommended) and JavaFX are installed.
-3. Set up Oracle SQL and create the required schema objects.
-4. Copy `database/db.properties.example` to `database/db.properties`.
-5. Update `database/db.properties` with your local database connection values.
-6. Build and run the project from your preferred Java IDE.
+- `src/main/java/playerregistration/Main.java`: JavaFX UI and input handling.
+- `src/main/java/playerregistration/service/`: Transactional application workflows.
+- `src/main/java/playerregistration/dao/`: SQL operations for `Player`, `Game`, and `PlayerAndGame`.
+- `src/main/java/playerregistration/database/`: `DatabaseConnectionManager` for config loading, JDBC URL-based driver initialization, and connection creation.
+- `src/test/`: JUnit test suite (service and DAO behavior) plus test DB support utilities.
+- `database/schema.sql` and `docs/database-schema.md`: schema reference artifacts.
+- `.github/workflows/ci.yml`: CI pipeline running Maven tests.
 
-## Database Schema
+## Database Design
 
-Schema reference files are provided in `docs/`:
+The runtime application model uses three core tables:
 
+- `Player`: player profile records
+- `Game`: game catalog records
+- `PlayerAndGame`: linking table with gameplay attributes (`player_date`, `score`)
+
+Relationship model:
+
+- `PlayerAndGame.player_id` references `Player.player_id`
+- `PlayerAndGame.game_id` references `Game.game_id`
+- Supports many-to-many association between players and games through the linking table
+
+Reference SQL scripts and documentation are available in:
+
+- `database/schema.sql`
+- `database/sample-data.sql`
 - `docs/database-schema.md`
-- `docs/schema.sql`
+
+## Transaction Management
+
+Related create/update/delete operations in the service layer are handled in a single JDBC transaction:
+
+- Acquire one `Connection`
+- Call `setAutoCommit(false)`
+- Execute related DAO operations
+- `commit()` on success
+- `rollback()` on failure
+
+This pattern is implemented in `PlayerRegistrationService` for consistency across multi-table writes.
+
+## Security and Configuration
+
+- `database/db.properties.example` is the committed template.
+- Create a local `database/db.properties` with your own Oracle connection values.
+- Real credentials are not committed.
+- Tests use `database/db.test.properties` with test-only H2 credentials.
+
+## Testing
+
+The automated test suite uses:
+
+- JUnit 5
+- H2 in Oracle compatibility mode (`MODE=Oracle`)
+- Service and DAO tests under `src/test/java/playerregistration/`
+
+Current automated test scope includes transactional workflows and DAO behavior, including rollback scenarios.
+
+Run tests locally with:
+
+```bash
+mvn clean test
+```
+
+## CI/CD
+
+GitHub Actions automatically runs Maven tests using JDK 17 on:
+
+- Pull requests
+- Pushes to `main`
+
+Workflow file:
+
+- `.github/workflows/ci.yml`
+
+## Local Setup
+
+1. Install JDK 17.
+2. Install Maven 3.9+.
+3. Copy `database/db.properties.example` to `database/db.properties`.
+4. Configure Oracle JDBC URL, username, and password in `database/db.properties`.
+5. Run the application from your IDE (JavaFX desktop entry point: `Main`).
+6. Run tests with `mvn clean test`.
 
 ## Screenshots
 
-Add screenshots to `screenshots/` and reference them below:
+Add screenshots to `screenshots/` and update these references:
 
-- `screenshots/player-form.png`
-- `screenshots/game-form.png`
-- `screenshots/player-table.png`
-
-## Security Notes
-
-- Do not commit real database credentials.
-- Keep `database/db.properties` local only.
-- Use the committed example file as a template.
+- `screenshots/app-main-form.png` (placeholder)
+- `screenshots/app-report-table.png` (placeholder)
+- `screenshots/app-update-workflow.png` (placeholder)
 
 ## Future Improvements
 
-- Add unit tests for service and validation layers
-- Add integration tests with test database profiles
-- Add input validation error summaries in the UI
-- Add CI workflow for build and static checks
-
-## Author
-
-Jaturaput Jongsubcharoen
+- Expand DAO test coverage for edge cases and SQL constraints
+- Add JavaFX UI automation tests
+- Improve concurrency-safe generated ID handling strategy
+- Add structured logging for operational diagnostics
