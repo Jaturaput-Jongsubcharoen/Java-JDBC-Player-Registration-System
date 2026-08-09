@@ -8,20 +8,25 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 //------------------------------------------
-import java.sql.Connection;
 import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 //------------------------------------------
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import playerregistration.dao.GameDao;
+import playerregistration.dao.PlayerDao;
+import playerregistration.dao.PlayerGameDao;
 import playerregistration.database.DatabaseConnectionManager;
 //------------------------------------------
 public class Main extends Application {
+
+    private final PlayerDao playerDao = new PlayerDao();
+    private final GameDao gameDao = new GameDao();
+    private final PlayerGameDao playerGameDao = new PlayerGameDao();
 
     @SuppressWarnings("unchecked")
 	@Override
@@ -462,17 +467,9 @@ public class Main extends Application {
                 Date datePlayed = Date.valueOf(datePlayedInput);
                 
                 // Check if player_id exists
-                boolean playerExists = false;
-                try (Connection conn = DatabaseConnectionManager.getConnection()) {
-                    String checkPlayerSQL = "SELECT COUNT(*) AS count FROM Player WHERE player_id = ?";
-                    try (PreparedStatement checkStmt = conn.prepareStatement(checkPlayerSQL)) {
-                        checkStmt.setInt(1, playerId);
-                        try (ResultSet rs = checkStmt.executeQuery()) {
-                            if (rs.next() && rs.getInt("count") > 0) {
-                                playerExists = true;
-                            }
-                        }
-                    }
+                boolean playerExists;
+                try {
+                    playerExists = playerDao.existsById(playerId);
                 } catch (SQLException ex) {
                     System.out.println("Error checking player existence in the database!");
                     logSqlException("checking player existence", ex);
@@ -488,52 +485,10 @@ public class Main extends Application {
                 }
 
                 // Update database
-                try (Connection conn = DatabaseConnectionManager.getConnection()) {
-                    // Update Player table
-                    String updatePlayerSQL = """
-                        UPDATE Player
-                        SET first_name = ?, last_name = ?, address = ?, province = ?, postal_code = ?, phone_number = ?
-                        WHERE player_id = ?
-                    """;
-                    try (PreparedStatement pstmt = conn.prepareStatement(updatePlayerSQL)) {
-                        pstmt.setString(1, firstName);
-                        pstmt.setString(2, lastName);
-                        pstmt.setString(3, address);
-                        pstmt.setString(4, province);
-                        pstmt.setString(5, postalCode);
-                        pstmt.setString(6, phoneNumber);
-                        pstmt.setInt(7, playerId);
-                        pstmt.executeUpdate();
-                    }
-
-                    // Update Game table
-                    String updateGameSQL = """
-                        UPDATE Game
-                        SET game_title = ?
-                        WHERE game_id = (
-                            SELECT game_id FROM PlayerAndGame WHERE player_id = ?
-                        )
-                    """;
-                    try (PreparedStatement pstmt = conn.prepareStatement(updateGameSQL)) {
-                        pstmt.setString(1, gameTitle);
-                        pstmt.setInt(2, playerId);
-                        pstmt.executeUpdate();
-                    }
-
-                    // Update PlayerAndGame table
-                    String updatePlayerGameSQL = """
-                        UPDATE PlayerAndGame
-                        SET player_date = ?, score = ?
-                        WHERE player_id = ?
-                    """;
-                    try (PreparedStatement pstmt = conn.prepareStatement(updatePlayerGameSQL)) {
-                        pstmt.setDate(1, datePlayed);
-                        pstmt.setInt(2, gameScore);
-                        pstmt.setInt(3, playerId);
-                        pstmt.executeUpdate();
-                    }
-                    //System.out.println("Data updated successfully!");
-                    //System.out.println("Player and Game data updated successfully!");
+                try {
+                    playerDao.updatePlayer(playerId, firstName, lastName, address, province, postalCode, phoneNumber);
+                    gameDao.updateGameTitleByPlayerId(playerId, gameTitle);
+                    playerGameDao.updatePlayerGameByPlayerId(playerId, datePlayed, gameScore);
                 } catch (SQLException ex) {
                     System.out.println("Error updating data in the database!");
                     logSqlException("updating player/game data", ex);
@@ -545,67 +500,11 @@ public class Main extends Application {
         });
         //-------------------------------------------------------------------------------------------------------------------
         displayAllPlayersButton.setOnAction(e -> {
-        	String fetchSQL = """
-        			SELECT p.player_id AS ID, 
-					       p.first_name || ' ' || p.last_name AS NAME, 
-					       p.address AS ADDRESS, 
-					       p.postal_code AS POSTAL_CODE, 
-					       p.province AS PROVINCE, 
-					       p.phone_number AS PHONE_NUMBER, 
-					       g.game_title AS GAME_TITLE, 
-					       pg.score AS SCORE, 
-					       pg.player_date AS DATE_PLAYED 
-					FROM Player p
-					JOIN PlayerAndGame pg ON p.player_id = pg.player_id
-					JOIN Game g ON pg.game_id = g.game_id
-					WHERE pg.player_date = (
-					    SELECT MAX(player_date)
-					    FROM PlayerAndGame
-					    WHERE player_id = p.player_id
-					)
-        	""";
-				/*
-				SELECT p.player_id AS ID, 
-				        		           p.first_name || ' ' || p.last_name AS NAME, 
-				        		           p.address AS ADDRESS, 
-				        		           p.postal_code AS POSTAL_CODE, 
-				        		           p.province AS PROVINCE, 
-				        		           p.phone_number AS PHONE_NUMBER, 
-				        		           g.game_title AS GAME_TITLE, 
-				        		           pg.score AS SCORE, 
-				        		           pg.player_date AS DATE_PLAYED 
-				        		    FROM Player p
-				        		    JOIN PlayerAndGame pg ON p.player_id = pg.player_id
-				        		    JOIN Game g ON pg.game_id = g.game_id
-				*/
+            try {
+                System.out.println("Database connection successful. Fetching data...");
 
-            try (Connection conn = DatabaseConnectionManager.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(fetchSQL);
-                 ResultSet rs = pstmt.executeQuery()) {
-            	
-            	System.out.println("Database connection successful. Fetching data...");
-            	
-                ObservableList<PlayerGameInfo> data = FXCollections.observableArrayList();
-                /*
-                if (data.isEmpty()) {
-                    System.out.println("No data found.");
-                } else {
-                    System.out.println("Data found: displaying table...");
-                }
-                */
-                while (rs.next()) {
-                    data.add(new PlayerGameInfo(
-                        rs.getInt("ID"),
-                        rs.getString("NAME"),
-                        rs.getString("ADDRESS"),
-                        rs.getString("POSTAL_CODE"),
-                        rs.getString("PROVINCE"),
-                        rs.getString("PHONE_NUMBER"),
-                        rs.getString("GAME_TITLE"),
-                        rs.getInt("SCORE"),
-                        rs.getDate("DATE_PLAYED").toString()
-                    ));
-                }
+                List<PlayerGameInfo> results = playerGameDao.fetchLatestPlayerGameInfo();
+                ObservableList<PlayerGameInfo> data = FXCollections.observableArrayList(results);
 
                 // Create TableView
                 TableView<PlayerGameInfo> tableView = new TableView<>();
@@ -657,24 +556,12 @@ public class Main extends Application {
 
                             alert.showAndWait().ifPresent(response -> {
                                 if (response == ButtonType.OK) {
-                                    try (Connection deleteConn = DatabaseConnectionManager.getConnection()) {
-                                        // Delete from Player table
-                                        String deletePlayerSQL = "DELETE FROM Player WHERE player_id = ?";
-                                        try (PreparedStatement deleteStmt = deleteConn.prepareStatement(deletePlayerSQL)) {
-                                            deleteStmt.setInt(1, selectedPlayer.getId());
-                                            deleteStmt.executeUpdate();
-                                            System.out.println("Player ID " + selectedPlayer.getId() + " deleted successfully.");
-                                        }
+                                    try {
+                                        playerDao.deletePlayerById(selectedPlayer.getId());
+                                        System.out.println("Player ID " + selectedPlayer.getId() + " deleted successfully.");
 
-                                        // Clean up orphaned games
-                                        String deleteUnusedGamesSQL = """
-                                            DELETE FROM Game
-                                            WHERE game_id NOT IN (SELECT game_id FROM PlayerAndGame)
-                                        """;
-                                        try (PreparedStatement deleteGamesStmt = deleteConn.prepareStatement(deleteUnusedGamesSQL)) {
-                                            int rowsAffected = deleteGamesStmt.executeUpdate();
-                                            System.out.println(rowsAffected + " unused games deleted.");
-                                        }
+                                        int rowsAffected = gameDao.deleteUnusedGames();
+                                        System.out.println(rowsAffected + " unused games deleted.");
 
                                         // Remove from ObservableList
                                         data.remove(selectedPlayer);
@@ -717,137 +604,77 @@ public class Main extends Application {
     
     /*--------------------------------------------------------------------------------------------*/
     private void createPlayerDatabase() {
-        try (Connection conn = DatabaseConnectionManager.getConnection()) {
-            if (conn != null) {
-                String createTableSQL = """
-                		CREATE TABLE Player (
-                			player_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                		    first_name VARCHAR2(255) NOT NULL,
-                		    last_name VARCHAR2(255) NOT NULL,
-                		    address VARCHAR2(255) NOT NULL,
-                		    province VARCHAR2(2) NOT NULL,
-                		    postal_code VARCHAR2(6) NOT NULL,
-                		    phone_number NUMBER(10) NOT NULL
-                		)
-                """;
-                conn.createStatement().execute(createTableSQL);
-                System.out.println("> Player Table created successfully.");
-            }
+        try {
+            playerDao.createTableIfNotExists();
+            System.out.println("> Player Table created successfully.");
         } catch (SQLException e) {
             System.out.println("> Player Table might already exist.");
             logSqlException("creating Player table", e);
         }
     }
-    private void saveToPlayerDatabase(String firstName, String lastName, String address, String postalCode, String province, String phoneNumber) {
-        String insertSQL = "INSERT INTO Player (first_name, last_name, address, province, postal_code, phone_number) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
-            pstmt.setString(1, firstName);
-            pstmt.setString(2, lastName);
-            pstmt.setString(3, address);
-            pstmt.setString(4, province);
-            pstmt.setString(5, postalCode);
-            pstmt.setString(6, phoneNumber); // Use String for phone number
-            pstmt.executeUpdate();
+    private void saveToPlayerDatabase(String firstName, String lastName, String address, String postalCode, String province, String phoneNumber) {
+        try {
+            playerDao.insertPlayer(firstName, lastName, address, postalCode, province, phoneNumber);
             System.out.println("Player Data saved successfully!");
         } catch (SQLException e) {
             logSqlException("saving player", e);
         }
     }
+
     /*--------------------------------------------------------------------------------------------*/
     private void createGameDatabase() {
-        try (Connection conn = DatabaseConnectionManager.getConnection()) {
-            if (conn != null) {
-                String createTableSQL = """
-                		CREATE TABLE Game (
-                				game_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                		    	game_title VARCHAR2(20) NOT NULL
-
-                		)
-                """;
-                conn.createStatement().execute(createTableSQL);
-                System.out.println("> Game Table created successfully.");
-            }
+        try {
+            gameDao.createTableIfNotExists();
+            System.out.println("> Game Table created successfully.");
         } catch (SQLException e) {
             System.out.println("> Game Table might already exist.");
             logSqlException("creating Game table", e);
         }
     }
-    private void saveToGameDatabase(String gameTitle) {
-        String insertSQL = "INSERT INTO Game (game_title) VALUES (?)";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
-            pstmt.setString(1, gameTitle);
-            pstmt.executeUpdate();
+    private void saveToGameDatabase(String gameTitle) {
+        try {
+            gameDao.insertGame(gameTitle);
             System.out.println("Game Data saved successfully!");
         } catch (SQLException e) {
             logSqlException("saving game", e);
         }
     }
+
     /*--------------------------------------------------------------------------------------------*/
     private void createPlayerAndGemeDatabase() {
-        try (Connection conn = DatabaseConnectionManager.getConnection()) {
-            if (conn != null) {
-                String createTableSQL = """
-                        CREATE TABLE PlayerAndGame (
-                            id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                            player_id NUMBER NOT NULL,
-                            game_id NUMBER NOT NULL,
-                            player_date DATE NOT NULL,
-                            score NUMBER NOT NULL,
-                            CONSTRAINT fk_player FOREIGN KEY (player_id) REFERENCES Player(player_id) ON DELETE CASCADE,
-                            CONSTRAINT fk_game FOREIGN KEY (game_id) REFERENCES Game(game_id) ON DELETE CASCADE
-                        )
-                """;
-                conn.createStatement().execute(createTableSQL);
-                System.out.println("> PlayerAndGame Table created successfully.");
-            }
+        try {
+            playerGameDao.createTableIfNotExists();
+            System.out.println("> PlayerAndGame Table created successfully.");
         } catch (SQLException e) {
             System.out.println("> PlayerAndGame Table might already exist.");
             logSqlException("creating PlayerAndGame table", e);
         }
     }
-    private void saveToPlayerAndGameDatabase(int playerId, int gameId, Date playerDate, int score) {
-        String insertSQL = "INSERT INTO PlayerAndGame (player_id, game_id, player_date, score) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
-            pstmt.setInt(1, playerId);
-            pstmt.setInt(2, gameId);
-            pstmt.setDate(3, playerDate);
-            pstmt.setInt(4, score);
-            pstmt.executeUpdate();
+    private void saveToPlayerAndGameDatabase(int playerId, int gameId, Date playerDate, int score) {
+        try {
+            playerGameDao.insertPlayerGame(playerId, gameId, playerDate, score);
             System.out.println("Player and Game Data saved successfully!");
         } catch (SQLException e) {
             logSqlException("saving player and game relation", e);
         }
     }
+
     /*--------------------------------------------------------------------------------------------*/
     private int fetchLastInsertedPlayerId() {
-        String query = "SELECT MAX(player_id) AS last_id FROM Player";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            if (rs.next()) {
-                return rs.getInt("last_id");
-            }
+        try {
+            return playerDao.fetchLastInsertedPlayerId();
         } catch (SQLException e) {
             logSqlException("fetching last inserted player ID", e);
         }
         return -1; // Return -1 if no ID is found
     }
-    private int fetchLastInsertedGameId() {
-        String query = "SELECT MAX(game_id) AS last_id FROM Game";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query);
-             ResultSet rs = pstmt.executeQuery()) {
 
-            if (rs.next()) {
-                return rs.getInt("last_id");
-            }
+    private int fetchLastInsertedGameId() {
+        try {
+            return gameDao.fetchLastInsertedGameId();
         } catch (SQLException e) {
             logSqlException("fetching last inserted game ID", e);
         }
@@ -861,32 +688,4 @@ public class Main extends Application {
     private void logUnexpectedError(String operation, Exception e) {
         System.err.printf("Unexpected error during %s: %s%n", operation, e.getMessage());
     }
-    /*--------------------------------------------------------------------------------------------*/
-    /*
-    private String fetchAllPlayers() {
-        StringBuilder result = new StringBuilder();
-        String selectSQL = "SELECT * FROM students";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(selectSQL);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            result.append("ID | Name       | Email           | Course\n");
-            result.append("------------------------------------------\n");
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String name = rs.getString("name");
-                String email = rs.getString("email");
-                String course = rs.getString("course");
-                result.append(String.format("%-3d| %-10s| %-15s| %-10s%n", id, name, email, course));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return result.toString();
-    }
-
-    public static void main(String[] args) {
-        Main.launch();
-    }
-    */
 }
