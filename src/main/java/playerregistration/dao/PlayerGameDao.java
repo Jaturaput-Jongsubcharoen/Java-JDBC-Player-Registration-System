@@ -34,9 +34,15 @@ public class PlayerGameDao {
     }
 
     public void insertPlayerGame(int playerId, int gameId, Date playerDate, int score) throws SQLException {
-        String insertSQL = "INSERT INTO PlayerAndGame (player_id, game_id, player_date, score) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+             ) {
+            insertPlayerGame(conn, playerId, gameId, playerDate, score);
+        }
+    }
+
+    public void insertPlayerGame(Connection conn, int playerId, int gameId, Date playerDate, int score) throws SQLException {
+        String insertSQL = "INSERT INTO PlayerAndGame (player_id, game_id, player_date, score) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
             pstmt.setInt(1, playerId);
             pstmt.setInt(2, gameId);
             pstmt.setDate(3, playerDate);
@@ -46,13 +52,19 @@ public class PlayerGameDao {
     }
 
     public void updatePlayerGameByPlayerId(int playerId, Date playerDate, int score) throws SQLException {
+        try (Connection conn = DatabaseConnectionManager.getConnection();
+             ) {
+            updatePlayerGameByPlayerId(conn, playerId, playerDate, score);
+        }
+    }
+
+    public void updatePlayerGameByPlayerId(Connection conn, int playerId, Date playerDate, int score) throws SQLException {
         String updatePlayerGameSQL = """
                 UPDATE PlayerAndGame
                 SET player_date = ?, score = ?
                 WHERE player_id = ?
                 """;
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(updatePlayerGameSQL)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(updatePlayerGameSQL)) {
             pstmt.setDate(1, playerDate);
             pstmt.setInt(2, score);
             pstmt.setInt(3, playerId);
