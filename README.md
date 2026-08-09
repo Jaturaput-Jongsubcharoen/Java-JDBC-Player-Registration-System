@@ -28,6 +28,34 @@ Update workflow using an existing player ID to modify the current player row and
 <img width="1920" height="1035" alt="JavaFX_Database_Example_5-validation-errors" src="https://github.com/user-attachments/assets/9b1ea866-7269-4e2a-a1f7-26fc5b1368a8" />
 Validation example highlighting incorrect or incomplete user input and the inline field-level error messages shown in the UI.
 
+## REST API Endpoints
+
+The project also provides a Spring Boot REST API for integration testing and future frontend applications.
+
+### Base URL
+
+```text
+http://localhost:8081
+```
+
+### Available endpoints
+
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| GET | `/` | Application health check |
+| GET | `/api/players` | Retrieve player information |
+| POST | `/api/players` | Create a player |
+| PUT | `/api/players/{playerId}` | Update a player |
+
+### Example response
+
+```json
+{
+  "status": "running",
+  "application": "Player Registration API"
+}
+```
+
 ## Key Features
 
 - JavaFX desktop UI for create, update, delete, and reporting workflows
