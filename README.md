@@ -28,6 +28,37 @@ Update workflow using an existing player ID to modify the current player row and
 <img width="1920" height="1035" alt="JavaFX_Database_Example_5-validation-errors" src="https://github.com/user-attachments/assets/9b1ea866-7269-4e2a-a1f7-26fc5b1368a8" />
 Validation example highlighting incorrect or incomplete user input and the inline field-level error messages shown in the UI.
 
+## Spring Boot REST API
+
+### Root Health Endpoint
+
+<img src="screenshots/Spring_boot_api-root-endpoint.png" />
+
+Spring Boot health endpoint available at:
+
+`GET /`
+
+Example response:
+
+```json
+{
+  "status": "running",
+  "application": "Player Registration API"
+}
+```
+
+### Player API Response
+
+<img src="screenshots/Spring_boot_api-players-response.png" />
+
+Player information returned from:
+
+`GET /api/players`
+
+This endpoint demonstrates successful integration between Spring Boot, JPA repositories, and the underlying database.
+
+---
+
 ## REST API Endpoints
 
 The project also provides a Spring Boot REST API for integration testing and future frontend applications.
@@ -70,11 +101,14 @@ http://localhost:8081
 
 - Java 17
 - JavaFX 21
+- Spring Boot 3
+- Spring Data JPA
 - Maven
 - JDBC
 - Oracle SQL (production/local runtime target)
 - H2 (test database in Oracle compatibility mode)
 - JUnit 5
+- Docker
 - GitHub Actions
 
 ## Architecture
