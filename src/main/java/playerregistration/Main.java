@@ -8,7 +8,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 //------------------------------------------
-import java.sql.Connection;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.List;
@@ -18,16 +17,12 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import playerregistration.dao.GameDao;
-import playerregistration.dao.PlayerDao;
-import playerregistration.dao.PlayerGameDao;
 import playerregistration.database.DatabaseConnectionManager;
+import playerregistration.service.PlayerRegistrationService;
 //------------------------------------------
 public class Main extends Application {
 
-    private final PlayerDao playerDao = new PlayerDao();
-    private final GameDao gameDao = new GameDao();
-    private final PlayerGameDao playerGameDao = new PlayerGameDao();
+    private final PlayerRegistrationService registrationService = new PlayerRegistrationService();
 
     @SuppressWarnings("unchecked")
 	@Override
@@ -328,7 +323,7 @@ public class Main extends Application {
                 }
                 
                 // Save data to database
-                createPlayerGameWorkflow(firstName, lastName, address, postalCode, province, phoneNumber, gameTitle,
+                registrationService.createPlayerGameWorkflow(firstName, lastName, address, postalCode, province, phoneNumber, gameTitle,
                     Date.valueOf(datePlayedInput), Integer.parseInt(gameScoreInput));
                 //System.out.println("Player and game data saved successfully!");
 
@@ -467,7 +462,7 @@ public class Main extends Application {
                 // Check if player_id exists
                 boolean playerExists;
                 try {
-                    playerExists = updatePlayerGameWorkflow(playerId, firstName, lastName, address, province, postalCode,
+                    playerExists = registrationService.updatePlayerGameWorkflow(playerId, firstName, lastName, address, province, postalCode,
                             phoneNumber, gameTitle, datePlayed, gameScore);
                 } catch (SQLException ex) {
                     System.out.println("Error checking or updating data in the database!");
@@ -492,7 +487,7 @@ public class Main extends Application {
             try {
                 System.out.println("Database connection successful. Fetching data...");
 
-                List<PlayerGameInfo> results = playerGameDao.fetchLatestPlayerGameInfo();
+                List<PlayerGameInfo> results = registrationService.fetchLatestPlayerGameInfo();
                 ObservableList<PlayerGameInfo> data = FXCollections.observableArrayList(results);
 
                 // Create TableView
@@ -546,7 +541,7 @@ public class Main extends Application {
                             alert.showAndWait().ifPresent(response -> {
                                 if (response == ButtonType.OK) {
                                     try {
-                                        int rowsAffected = deletePlayerWorkflow(selectedPlayer.getId());
+                                        int rowsAffected = registrationService.deletePlayerWorkflow(selectedPlayer.getId());
                                         System.out.println("Player ID " + selectedPlayer.getId() + " deleted successfully.");
                                         System.out.println(rowsAffected + " unused games deleted.");
 
@@ -584,165 +579,13 @@ public class Main extends Application {
         primaryStage.show();
 
         // Initialize the database
-        createPlayerDatabase();
-        createGameDatabase();
-        createPlayerAndGemeDatabase();
-    }
-
-    private void createPlayerGameWorkflow(String firstName, String lastName, String address, String postalCode,
-                                          String province, String phoneNumber, String gameTitle, Date playerDate,
-                                          int score) throws SQLException {
-        try (Connection conn = DatabaseConnectionManager.getConnection()) {
-            boolean previousAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit(false);
-            try {
-                playerDao.insertPlayer(conn, firstName, lastName, address, postalCode, province, phoneNumber);
-                gameDao.insertGame(conn, gameTitle);
-
-                int playerId = playerDao.fetchLastInsertedPlayerId(conn);
-                int gameId = gameDao.fetchLastInsertedGameId(conn);
-                playerGameDao.insertPlayerGame(conn, playerId, gameId, playerDate, score);
-
-                conn.commit();
-            } catch (SQLException e) {
-                rollbackQuietly(conn, "creating player/game workflow");
-                throw e;
-            } finally {
-                conn.setAutoCommit(previousAutoCommit);
-            }
-        }
-    }
-
-    private boolean updatePlayerGameWorkflow(int playerId, String firstName, String lastName, String address,
-                                             String province, String postalCode, String phoneNumber, String gameTitle,
-                                             Date playerDate, int score) throws SQLException {
-        try (Connection conn = DatabaseConnectionManager.getConnection()) {
-            boolean previousAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit(false);
-            try {
-                if (!playerDao.existsById(conn, playerId)) {
-                    conn.rollback();
-                    return false;
-                }
-
-                playerDao.updatePlayer(conn, playerId, firstName, lastName, address, province, postalCode, phoneNumber);
-                gameDao.updateGameTitleByPlayerId(conn, playerId, gameTitle);
-                playerGameDao.updatePlayerGameByPlayerId(conn, playerId, playerDate, score);
-
-                conn.commit();
-                return true;
-            } catch (SQLException e) {
-                rollbackQuietly(conn, "updating player/game workflow");
-                throw e;
-            } finally {
-                conn.setAutoCommit(previousAutoCommit);
-            }
-        }
-    }
-
-    private int deletePlayerWorkflow(int playerId) throws SQLException {
-        try (Connection conn = DatabaseConnectionManager.getConnection()) {
-            boolean previousAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit(false);
-            try {
-                playerDao.deletePlayerById(conn, playerId);
-                int rowsAffected = gameDao.deleteUnusedGames(conn);
-                conn.commit();
-                return rowsAffected;
-            } catch (SQLException e) {
-                rollbackQuietly(conn, "deleting player workflow");
-                throw e;
-            } finally {
-                conn.setAutoCommit(previousAutoCommit);
-            }
-        }
-    }
-
-    private void rollbackQuietly(Connection conn, String operation) {
         try {
-            conn.rollback();
-        } catch (SQLException rollbackEx) {
-            logSqlException("rollback for " + operation, rollbackEx);
-        }
-    }
-    
-    /*--------------------------------------------------------------------------------------------*/
-    private void createPlayerDatabase() {
-        try {
-            playerDao.createTableIfNotExists();
-            System.out.println("> Player Table created successfully.");
+            registrationService.initializeDatabaseSchema();
+            System.out.println("> Database tables initialized successfully.");
         } catch (SQLException e) {
-            System.out.println("> Player Table might already exist.");
-            logSqlException("creating Player table", e);
+            System.out.println("> Database table initialization encountered an issue.");
+            logSqlException("initializing database schema", e);
         }
-    }
-
-    private void saveToPlayerDatabase(String firstName, String lastName, String address, String postalCode, String province, String phoneNumber) {
-        try {
-            playerDao.insertPlayer(firstName, lastName, address, postalCode, province, phoneNumber);
-            System.out.println("Player Data saved successfully!");
-        } catch (SQLException e) {
-            logSqlException("saving player", e);
-        }
-    }
-
-    /*--------------------------------------------------------------------------------------------*/
-    private void createGameDatabase() {
-        try {
-            gameDao.createTableIfNotExists();
-            System.out.println("> Game Table created successfully.");
-        } catch (SQLException e) {
-            System.out.println("> Game Table might already exist.");
-            logSqlException("creating Game table", e);
-        }
-    }
-
-    private void saveToGameDatabase(String gameTitle) {
-        try {
-            gameDao.insertGame(gameTitle);
-            System.out.println("Game Data saved successfully!");
-        } catch (SQLException e) {
-            logSqlException("saving game", e);
-        }
-    }
-
-    /*--------------------------------------------------------------------------------------------*/
-    private void createPlayerAndGemeDatabase() {
-        try {
-            playerGameDao.createTableIfNotExists();
-            System.out.println("> PlayerAndGame Table created successfully.");
-        } catch (SQLException e) {
-            System.out.println("> PlayerAndGame Table might already exist.");
-            logSqlException("creating PlayerAndGame table", e);
-        }
-    }
-
-    private void saveToPlayerAndGameDatabase(int playerId, int gameId, Date playerDate, int score) {
-        try {
-            playerGameDao.insertPlayerGame(playerId, gameId, playerDate, score);
-            System.out.println("Player and Game Data saved successfully!");
-        } catch (SQLException e) {
-            logSqlException("saving player and game relation", e);
-        }
-    }
-
-    /*--------------------------------------------------------------------------------------------*/
-    private int fetchLastInsertedPlayerId() {
-        try {
-            return playerDao.fetchLastInsertedPlayerId();
-        } catch (SQLException e) {
-            logSqlException("fetching last inserted player ID", e);
-        }
-        return -1; // Return -1 if no ID is found
-    }
-
-    private int fetchLastInsertedGameId() {
-        try {
-            return gameDao.fetchLastInsertedGameId();
-        } catch (SQLException e) {
-            logSqlException("fetching last inserted game ID", e);
-        }
-        return -1; // Return -1 if no ID is found
     }
 
     private void logSqlException(String operation, SQLException e) {
