@@ -33,7 +33,8 @@ High-level flow:
 - Service layer (`PlayerRegistrationService`) manages business workflows and transactions
 - DAO layer (`PlayerDao`, `GameDao`, `PlayerGameDao`) executes SQL
 - `DatabaseConnectionManager` handles configuration loading and JDBC connections
-- Oracle database stores runtime application data
+- Oracle database stores production data.
+- H2 in Oracle compatibility mode is available for local demonstrations and automated tests.
 
 ```mermaid
 flowchart LR
@@ -52,24 +53,24 @@ flowchart LR
 ```text
 .github/workflows/ci.yml
 database/
-	db.properties.example
-	db.test.properties
-	schema.sql
-	sample-data.sql
+  db.properties.example
+  db.test.properties
+  schema.sql
+  sample-data.sql
 docs/
-	database-schema.md
+  database-schema.md
 src/
-	main/
-		java/playerregistration/
-			Main.java
-			service/
-			dao/
-			database/
-	test/
-		java/playerregistration/
-			service/
-			dao/
-			testsupport/
+  main/
+    java/playerregistration/
+      Main.java
+      service/
+      dao/
+      database/
+  test/
+    java/playerregistration/
+      service/
+      dao/
+      testsupport/
 ```
 
 Important components:
@@ -154,16 +155,49 @@ Workflow file:
 2. Install Maven 3.9+.
 3. Copy `database/db.properties.example` to `database/db.properties`.
 4. Configure Oracle JDBC URL, username, and password in `database/db.properties`.
-5. Run the application from your IDE (JavaFX desktop entry point: `Main`).
-6. Run tests with `mvn clean test`.
+5. Run the application:
+
+```bash
+mvn clean javafx:run
+```
+
+6. Run the automated tests:
+
+```bash
+mvn clean test
+```
 
 ## Screenshots
 
-Add screenshots to `screenshots/` and update these references:
+### Main Application Window
 
-- `screenshots/app-main-form.png` (placeholder)
-- `screenshots/app-report-table.png` (placeholder)
-- `screenshots/app-update-workflow.png` (placeholder)
+![Main Window](screenshots/main-window.png)
+
+Main JavaFX application window showing the player information form, game information form, and primary action buttons before any workflow is executed.
+
+### Creating a Player
+
+![Create Player](screenshots/create-player.png)
+
+Successful create workflow after entering player and game data, demonstrating record creation and the create status message.
+
+### Displaying Players and Games
+
+![Display Players](screenshots/display-all-players.png)
+
+Reporting view opened from `Display All Players`, showing the joined player/game results loaded from the database in a table.
+
+### Updating an Existing Player
+
+![Update Player](screenshots/update-player.png)
+
+Update workflow using an existing player ID to modify the current player row and its related game and score data without creating a new player ID.
+
+### Validation and Error Handling
+
+![Validation Errors](screenshots/validation-errors.png)
+
+Validation example highlighting incorrect or incomplete user input and the inline field-level error messages shown in the UI.
 
 ## Future Improvements
 

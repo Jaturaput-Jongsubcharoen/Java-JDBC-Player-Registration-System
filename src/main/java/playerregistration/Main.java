@@ -1,5 +1,6 @@
 package playerregistration;
 //------------------------------------------
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -7,6 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 //------------------------------------------
 import java.sql.Date;
 import java.sql.SQLException;
@@ -86,6 +88,12 @@ public class Main extends Application {
         Button createPlayerButton = new Button("Create Player");
         createPlayerButton.setMaxWidth(Double.MAX_VALUE);
         Button displayAllPlayersButton = new Button("Display All Players");
+        Label createStatusLabel = new Label();
+        createStatusLabel.setManaged(false);
+        createStatusLabel.setVisible(false);
+        Label updateStatusLabel = new Label();
+        updateStatusLabel.setManaged(false);
+        updateStatusLabel.setVisible(false);
         
         //---------------------------------------------------------
         //TextArea displayArea = new TextArea();
@@ -124,6 +132,7 @@ public class Main extends Application {
         //-------------------------------------------
         grid.add(createPlayerButton, 4, 16);
         grid.add(displayAllPlayersButton, 5, 16);
+        grid.add(createStatusLabel, 4, 17, 2, 1);
         //-------------------------------------------
         // VBox to include the grid and display area
         //VBox vbox = new VBox(10, grid);
@@ -151,9 +160,6 @@ public class Main extends Application {
         Label phoneNumberErrorLabel = new Label();
         phoneNumberErrorLabel.setStyle("-fx-text-fill: red;");
         
-        Label updatePlayerByIdErrorLabel = new Label();
-        updatePlayerByIdErrorLabel.setStyle("-fx-text-fill: red;");
-
         Label gameTitleErrorLabel = new Label();
         gameTitleErrorLabel.setStyle("-fx-text-fill: red;");
 
@@ -171,7 +177,7 @@ public class Main extends Application {
         grid.add(postalCodeErrorLabel, 0, 10, 2, 1);  // Adjacent to Province field
         grid.add(phoneNumberErrorLabel, 0, 12, 2, 1); // Adjacent to Phone Number field
         /*---------------------------------------*/
-        grid.add(updatePlayerByIdErrorLabel, 3, 2, 2, 1); // Adjacent to Game Title field
+        grid.add(updateStatusLabel, 3, 2, 3, 1); // Status below update controls
         
         grid.add(gameTitleErrorLabel, 3, 8, 2, 1); // Adjacent to Game Title field
         grid.add(gameScoreErrorLabel, 3, 10, 2, 1);  // Adjacent to Game Source field
@@ -181,6 +187,8 @@ public class Main extends Application {
         createPlayerButton.setOnAction(e -> {
             StringBuilder errorMessages = new StringBuilder(); // To collect all error messages
             boolean hasError = false; // Track if there are any errors
+
+            clearStatusLabel(createStatusLabel);
 
             // Clear all previous error messages
             firstNameErrorLabel.setText("");
@@ -318,16 +326,16 @@ public class Main extends Application {
                 if (hasError) {
                     System.out.println("Validation Errors:\n" + errorMessages.toString());
                     return;
-                }  else {
-                    updatePlayerByIdErrorLabel.setText("");
                 }
                 
                 // Save data to database
                 registrationService.createPlayerGameWorkflow(firstName, lastName, address, postalCode, province, phoneNumber, gameTitle,
                     Date.valueOf(datePlayedInput), Integer.parseInt(gameScoreInput));
+                showStatusLabel(createStatusLabel, "Player created successfully", true);
                 //System.out.println("Player and game data saved successfully!");
 
             } catch (Exception ex) {
+                showStatusLabel(createStatusLabel, "Unable to create player", false);
                 System.out.println("Error: An unexpected error occurred!");
                 logUnexpectedError("creating player", ex);
             }
@@ -337,6 +345,7 @@ public class Main extends Application {
         updateButton.setOnAction(e -> {
             StringBuilder errorMessages = new StringBuilder(); // Collect error messages
             boolean hasError = false;
+            clearStatusLabel(updateStatusLabel);
             
             // Clear previous error messages
             firstNameErrorLabel.setText("");
@@ -365,11 +374,9 @@ public class Main extends Application {
                 // Validate inputs
                 if (idInput.isEmpty()) {
                     errorMessages.append("Error: ID cannot be empty!\n");
-                    updatePlayerByIdErrorLabel.setText("Error: ID cannot be empty!");
                     hasError = true; // Set error flag
                 } else if (!idInput.matches("\\d+")) {
                     errorMessages.append("Error: ID must be a valid number!\n");
-                    updatePlayerByIdErrorLabel.setText("Error: ID must be a valid number!");
                     hasError = true; // Set error flag
                 }
                 if (firstName.isEmpty() || !firstName.matches("[a-zA-Z]+")) {
@@ -449,10 +456,9 @@ public class Main extends Application {
                 }
 
                 if (hasError) {
+                    showStatusLabel(updateStatusLabel, "Unable to update player", false);
                     System.out.println("Validation Errors:\n" + errorMessages.toString());
                     return;
-                } else {
-                    updatePlayerByIdErrorLabel.setText("");
                 }
 
                 int playerId = Integer.parseInt(idInput);
@@ -465,25 +471,29 @@ public class Main extends Application {
                     playerExists = registrationService.updatePlayerGameWorkflow(playerId, firstName, lastName, address, province, postalCode,
                             phoneNumber, gameTitle, datePlayed, gameScore);
                 } catch (SQLException ex) {
+                    showStatusLabel(updateStatusLabel, "Unable to update player", false);
                     System.out.println("Error checking or updating data in the database!");
                     logSqlException("updating player/game data", ex);
                     return;
                 }
 
                 if (!playerExists) {
-                    updatePlayerByIdErrorLabel.setText("Error: Player ID does not exist!");
+                    showStatusLabel(updateStatusLabel, "Player ID does not exist", false);
                     System.out.println("Error: Player ID does not exist!");
                 } else {
-                    updatePlayerByIdErrorLabel.setText("Data updated successfully!");
+                    showStatusLabel(updateStatusLabel, "Player updated successfully", true);
                     System.out.println("Data updated successfully!");
                 }
             } catch (Exception ex) {
+                showStatusLabel(updateStatusLabel, "Unable to update player", false);
                 System.out.println("Error processing update!");
                 logUnexpectedError("processing update", ex);
             }
         });
         //-------------------------------------------------------------------------------------------------------------------
         displayAllPlayersButton.setOnAction(e -> {
+            clearStatusLabel(createStatusLabel);
+
             try {
                 System.out.println("Database connection successful. Fetching data...");
 
@@ -565,8 +575,10 @@ public class Main extends Application {
                 tableStage.setScene(tableScene);
                 tableStage.setTitle("All Players and Games");
                 tableStage.show();
+                showStatusLabel(createStatusLabel, "Database connected successfully", true);
 
             } catch (SQLException ex) {
+                showStatusLabel(createStatusLabel, "Unable to load players", false);
                 System.out.println("Error fetching data from the database.");
                 logSqlException("fetching player/game list", ex);
             }
@@ -586,6 +598,36 @@ public class Main extends Application {
             System.out.println("> Database table initialization encountered an issue.");
             logSqlException("initializing database schema", e);
         }
+    }
+
+    private void showStatusLabel(Label statusLabel, String message, boolean successful) {
+        statusLabel.setText(message);
+        statusLabel.setStyle(successful
+                ? "-fx-font-weight: bold; -fx-text-fill: green;"
+                : "-fx-font-weight: bold; -fx-text-fill: red;");
+        statusLabel.setManaged(true);
+        statusLabel.setVisible(true);
+
+        Object existingTransition = statusLabel.getProperties().get("hideTransition");
+        if (existingTransition instanceof PauseTransition pauseTransition) {
+            pauseTransition.stop();
+        }
+
+        PauseTransition hideTransition = new PauseTransition(Duration.seconds(5));
+        hideTransition.setOnFinished(event -> clearStatusLabel(statusLabel));
+        statusLabel.getProperties().put("hideTransition", hideTransition);
+        hideTransition.playFromStart();
+    }
+
+    private void clearStatusLabel(Label statusLabel) {
+        Object existingTransition = statusLabel.getProperties().get("hideTransition");
+        if (existingTransition instanceof PauseTransition pauseTransition) {
+            pauseTransition.stop();
+        }
+
+        statusLabel.setText("");
+        statusLabel.setManaged(false);
+        statusLabel.setVisible(false);
     }
 
     private void logSqlException(String operation, SQLException e) {

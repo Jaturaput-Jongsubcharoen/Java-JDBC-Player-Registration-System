@@ -92,8 +92,12 @@ class PlayerRegistrationServiceTest {
         );
 
         assertTrue(updated);
+        assertEquals(1, TestDatabaseSupport.countRows("Player"));
+        assertEquals(1, TestDatabaseSupport.countRows("Game"));
+        assertEquals(1, TestDatabaseSupport.countRows("PlayerAndGame"));
 
         PlayerGameInfo updatedRow = service.fetchLatestPlayerGameInfo().get(0);
+        assertEquals(playerId, updatedRow.getId());
         assertEquals("Taylor Stone", updatedRow.getName());
         assertEquals("NBA 2K24", updatedRow.getGameTitle());
         assertEquals(102, updatedRow.getScore());
