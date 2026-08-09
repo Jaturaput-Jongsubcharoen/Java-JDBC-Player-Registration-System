@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  spring-api-h2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: player-registration-api-h2
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_CONFIG_PATH: /config/db.properties
+      JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+    volumes:
+      - ./database/db.test.properties:/config/db.properties:ro
+
+  spring-api-oracle:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: player-registration-api-oracle
+    restart: unless-stopped
+    profiles: ["oracle"]
+    ports:
+      - "8081:8080"
+    environment:
+      DB_CONFIG_PATH: /config/db.properties
+      JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+    volumes:
+      - ./database/db.properties:/config/db.properties:ro
