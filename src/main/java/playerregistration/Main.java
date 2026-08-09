@@ -10,7 +10,6 @@ import javafx.stage.Stage;
 //------------------------------------------
 import java.sql.Connection;
 import java.sql.Date;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,22 +19,19 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import playerregistration.database.DatabaseConnectionManager;
 //------------------------------------------
 public class Main extends Application {
-
-    private static final String DB_URL = "jdbc:oracle:thin:@199.212.26.208:1521:SQLD";
-    private static final String DB_USER = "APP_DB_USER";
-    private static final String DB_PASSWORD = "password";
 
     @SuppressWarnings("unchecked")
 	@Override
     public void start(Stage primaryStage) {
         try {
             System.out.println("> Start Program ...");
-            Class.forName("oracle.jdbc.driver.OracleDriver");
-            System.out.println("> Driver Loaded successfully.");
-        } catch (Exception e) {
-            e.printStackTrace();
+            DatabaseConnectionManager.initialize();
+            System.out.println("> Database configuration loaded.");
+        } catch (IllegalStateException e) {
+            System.err.println("Database initialization failed. Ensure database/db.properties is configured from database/db.properties.example.");
         }
 
         // GridPane for the form
@@ -335,7 +331,7 @@ public class Main extends Application {
 
             } catch (Exception ex) {
                 System.out.println("Error: An unexpected error occurred!");
-                ex.printStackTrace();
+                logUnexpectedError("creating player", ex);
             }
         });
         
@@ -467,7 +463,7 @@ public class Main extends Application {
                 
                 // Check if player_id exists
                 boolean playerExists = false;
-                try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                try (Connection conn = DatabaseConnectionManager.getConnection()) {
                     String checkPlayerSQL = "SELECT COUNT(*) AS count FROM Player WHERE player_id = ?";
                     try (PreparedStatement checkStmt = conn.prepareStatement(checkPlayerSQL)) {
                         checkStmt.setInt(1, playerId);
@@ -479,7 +475,7 @@ public class Main extends Application {
                     }
                 } catch (SQLException ex) {
                     System.out.println("Error checking player existence in the database!");
-                    ex.printStackTrace();
+                    logSqlException("checking player existence", ex);
                     return;
                 }
                 if (!playerExists) {
@@ -492,7 +488,7 @@ public class Main extends Application {
                 }
 
                 // Update database
-                try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                try (Connection conn = DatabaseConnectionManager.getConnection()) {
                     // Update Player table
                     String updatePlayerSQL = """
                         UPDATE Player
@@ -540,11 +536,11 @@ public class Main extends Application {
                     //System.out.println("Player and Game data updated successfully!");
                 } catch (SQLException ex) {
                     System.out.println("Error updating data in the database!");
-                    ex.printStackTrace();
+                    logSqlException("updating player/game data", ex);
                 }
             } catch (Exception ex) {
                 System.out.println("Error processing update!");
-                ex.printStackTrace();
+                logUnexpectedError("processing update", ex);
             }
         });
         //-------------------------------------------------------------------------------------------------------------------
@@ -583,7 +579,7 @@ public class Main extends Application {
 				        		    JOIN Game g ON pg.game_id = g.game_id
 				*/
 
-            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            try (Connection conn = DatabaseConnectionManager.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(fetchSQL);
                  ResultSet rs = pstmt.executeQuery()) {
             	
@@ -661,7 +657,7 @@ public class Main extends Application {
 
                             alert.showAndWait().ifPresent(response -> {
                                 if (response == ButtonType.OK) {
-                                    try (Connection deleteConn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                                    try (Connection deleteConn = DatabaseConnectionManager.getConnection()) {
                                         // Delete from Player table
                                         String deletePlayerSQL = "DELETE FROM Player WHERE player_id = ?";
                                         try (PreparedStatement deleteStmt = deleteConn.prepareStatement(deletePlayerSQL)) {
@@ -683,8 +679,8 @@ public class Main extends Application {
                                         // Remove from ObservableList
                                         data.remove(selectedPlayer);
                                     } catch (SQLException ex) {
-                                        System.out.println("Error deleting player or cleaning up games: " + ex.getMessage());
-                                        ex.printStackTrace();
+                                        System.out.println("Error deleting player or cleaning up games.");
+                                        logSqlException("deleting player/cleanup", ex);
                                     }
                                 }
                             });
@@ -702,8 +698,8 @@ public class Main extends Application {
                 tableStage.show();
 
             } catch (SQLException ex) {
-                System.out.println("Error fetching data: " + ex.getMessage());
-                ex.printStackTrace();
+                System.out.println("Error fetching data from the database.");
+                logSqlException("fetching player/game list", ex);
             }
         });
         /*--------------------------------------------------------------------------------------------*/
@@ -721,7 +717,7 @@ public class Main extends Application {
     
     /*--------------------------------------------------------------------------------------------*/
     private void createPlayerDatabase() {
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+        try (Connection conn = DatabaseConnectionManager.getConnection()) {
             if (conn != null) {
                 String createTableSQL = """
                 		CREATE TABLE Player (
@@ -739,11 +735,12 @@ public class Main extends Application {
             }
         } catch (SQLException e) {
             System.out.println("> Player Table might already exist.");
+            logSqlException("creating Player table", e);
         }
     }
     private void saveToPlayerDatabase(String firstName, String lastName, String address, String postalCode, String province, String phoneNumber) {
         String insertSQL = "INSERT INTO Player (first_name, last_name, address, province, postal_code, phone_number) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
             pstmt.setString(1, firstName);
@@ -755,12 +752,12 @@ public class Main extends Application {
             pstmt.executeUpdate();
             System.out.println("Player Data saved successfully!");
         } catch (SQLException e) {
-            e.printStackTrace();
+            logSqlException("saving player", e);
         }
     }
     /*--------------------------------------------------------------------------------------------*/
     private void createGameDatabase() {
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+        try (Connection conn = DatabaseConnectionManager.getConnection()) {
             if (conn != null) {
                 String createTableSQL = """
                 		CREATE TABLE Game (
@@ -774,23 +771,24 @@ public class Main extends Application {
             }
         } catch (SQLException e) {
             System.out.println("> Game Table might already exist.");
+            logSqlException("creating Game table", e);
         }
     }
     private void saveToGameDatabase(String gameTitle) {
         String insertSQL = "INSERT INTO Game (game_title) VALUES (?)";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
             pstmt.setString(1, gameTitle);
             pstmt.executeUpdate();
             System.out.println("Game Data saved successfully!");
         } catch (SQLException e) {
-            e.printStackTrace();
+            logSqlException("saving game", e);
         }
     }
     /*--------------------------------------------------------------------------------------------*/
     private void createPlayerAndGemeDatabase() {
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+        try (Connection conn = DatabaseConnectionManager.getConnection()) {
             if (conn != null) {
                 String createTableSQL = """
                         CREATE TABLE PlayerAndGame (
@@ -808,12 +806,12 @@ public class Main extends Application {
             }
         } catch (SQLException e) {
             System.out.println("> PlayerAndGame Table might already exist.");
-            //e.printStackTrace(); // Print the stack trace for debugging
+            logSqlException("creating PlayerAndGame table", e);
         }
     }
     private void saveToPlayerAndGameDatabase(int playerId, int gameId, Date playerDate, int score) {
         String insertSQL = "INSERT INTO PlayerAndGame (player_id, game_id, player_date, score) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
             pstmt.setInt(1, playerId);
@@ -823,13 +821,13 @@ public class Main extends Application {
             pstmt.executeUpdate();
             System.out.println("Player and Game Data saved successfully!");
         } catch (SQLException e) {
-            e.printStackTrace();
+            logSqlException("saving player and game relation", e);
         }
     }
     /*--------------------------------------------------------------------------------------------*/
     private int fetchLastInsertedPlayerId() {
         String query = "SELECT MAX(player_id) AS last_id FROM Player";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
 
@@ -837,13 +835,13 @@ public class Main extends Application {
                 return rs.getInt("last_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logSqlException("fetching last inserted player ID", e);
         }
         return -1; // Return -1 if no ID is found
     }
     private int fetchLastInsertedGameId() {
         String query = "SELECT MAX(game_id) AS last_id FROM Game";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
 
@@ -851,16 +849,24 @@ public class Main extends Application {
                 return rs.getInt("last_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logSqlException("fetching last inserted game ID", e);
         }
         return -1; // Return -1 if no ID is found
+    }
+
+    private void logSqlException(String operation, SQLException e) {
+        System.err.printf("Database error during %s (SQLState=%s, ErrorCode=%d).%n", operation, e.getSQLState(), e.getErrorCode());
+    }
+
+    private void logUnexpectedError(String operation, Exception e) {
+        System.err.printf("Unexpected error during %s: %s%n", operation, e.getMessage());
     }
     /*--------------------------------------------------------------------------------------------*/
     /*
     private String fetchAllPlayers() {
         StringBuilder result = new StringBuilder();
         String selectSQL = "SELECT * FROM students";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(selectSQL);
              ResultSet rs = pstmt.executeQuery()) {
 
