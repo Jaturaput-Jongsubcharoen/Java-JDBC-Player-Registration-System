@@ -30,8 +30,8 @@ public final class DatabaseConnectionManager {
     }
 
     public static void initialize() {
-        loadOracleDriver();
-        getDbProperties();
+        Properties properties = getDbProperties();
+        initializeDriverForUrl(properties.getProperty("db.url"));
     }
 
     private static Properties getDbProperties() {
@@ -93,5 +93,20 @@ public final class DatabaseConnectionManager {
                 throw new IllegalStateException("Oracle JDBC driver is not available on the classpath.", secondary);
             }
         }
+    }
+
+    private static void initializeDriverForUrl(String dbUrl) {
+        String trimmedUrl = dbUrl == null ? "" : dbUrl.trim();
+
+        if (trimmedUrl.startsWith("jdbc:oracle:")) {
+            loadOracleDriver();
+            return;
+        }
+
+        if (trimmedUrl.startsWith("jdbc:h2:")) {
+            return;
+        }
+
+        throw new IllegalStateException("Unsupported JDBC URL in db.url: " + trimmedUrl);
     }
 }
