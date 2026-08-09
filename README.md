@@ -2,7 +2,31 @@
 
 [![CI](https://github.com/Jaturaput-Jongsubcharoen/Java-JDBC-Player-Registration-System/actions/workflows/ci.yml/badge.svg)](https://github.com/Jaturaput-Jongsubcharoen/Java-JDBC-Player-Registration-System/actions/workflows/ci.yml)
 
+# Project overview
+
 A JavaFX desktop application for managing players, games, and player-game results with a layered JDBC architecture. The codebase is organized for maintainability and portfolio-grade engineering practices, including automated tests and GitHub Actions CI.
+
+## Screenshots
+
+### Main Application Window
+<img width="1917" height="1030" alt="JavaFX_Database_Example_1-main-window" src="https://github.com/user-attachments/assets/8b4db47c-2950-454f-a6ab-5e92b6051bf8" />
+Main JavaFX application window showing the player information form, game information form, and primary action buttons before any workflow is executed.
+
+### Creating a Player
+<img width="1918" height="1032" alt="JavaFX_Database_Example_2-create-player" src="https://github.com/user-attachments/assets/a3623031-e120-4ff4-8209-a9eda5ca6fd5" />
+Successful create workflow after entering player and game data, demonstrating record creation and the create status message.
+
+### Displaying Players and Games
+<img width="1920" height="1032" alt="JavaFX_Database_Example_3-display-all-players" src="https://github.com/user-attachments/assets/e95510e3-09ac-4b91-88c3-99caf1461576" />
+Reporting view opened from `Display All Players`, showing the joined player/game results loaded from the database in a table.
+
+### Updating an Existing Player
+<img width="1918" height="1033" alt="JavaFX_Database_Example_4-update-player" src="https://github.com/user-attachments/assets/0d5a3562-3cb0-4fe1-934d-5450baa03af8" />
+Update workflow using an existing player ID to modify the current player row and its related game and score data without creating a new player ID.
+
+### Validation and Error Handling
+<img width="1920" height="1035" alt="JavaFX_Database_Example_5-validation-errors" src="https://github.com/user-attachments/assets/9b1ea866-7269-4e2a-a1f7-26fc5b1368a8" />
+Validation example highlighting incorrect or incomplete user input and the inline field-level error messages shown in the UI.
 
 ## Key Features
 
@@ -166,28 +190,6 @@ mvn clean javafx:run
 ```bash
 mvn clean test
 ```
-
-## Screenshots
-
-### Main Application Window
-<img width="1917" height="1030" alt="JavaFX_Database_Example_1-main-window" src="https://github.com/user-attachments/assets/8b4db47c-2950-454f-a6ab-5e92b6051bf8" />
-Main JavaFX application window showing the player information form, game information form, and primary action buttons before any workflow is executed.
-
-### Creating a Player
-<img width="1918" height="1032" alt="JavaFX_Database_Example_2-create-player" src="https://github.com/user-attachments/assets/a3623031-e120-4ff4-8209-a9eda5ca6fd5" />
-Successful create workflow after entering player and game data, demonstrating record creation and the create status message.
-
-### Displaying Players and Games
-<img width="1920" height="1032" alt="JavaFX_Database_Example_3-display-all-players" src="https://github.com/user-attachments/assets/e95510e3-09ac-4b91-88c3-99caf1461576" />
-Reporting view opened from `Display All Players`, showing the joined player/game results loaded from the database in a table.
-
-### Updating an Existing Player
-<img width="1918" height="1033" alt="JavaFX_Database_Example_4-update-player" src="https://github.com/user-attachments/assets/0d5a3562-3cb0-4fe1-934d-5450baa03af8" />
-Update workflow using an existing player ID to modify the current player row and its related game and score data without creating a new player ID.
-
-### Validation and Error Handling
-<img width="1920" height="1035" alt="JavaFX_Database_Example_5-validation-errors" src="https://github.com/user-attachments/assets/9b1ea866-7269-4e2a-a1f7-26fc5b1368a8" />
-Validation example highlighting incorrect or incomplete user input and the inline field-level error messages shown in the UI.
 
 ## Future Improvements
 
