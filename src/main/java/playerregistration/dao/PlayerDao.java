@@ -30,9 +30,15 @@ public class PlayerDao {
     }
 
     public void insertPlayer(String firstName, String lastName, String address, String postalCode, String province, String phoneNumber) throws SQLException {
-        String insertSQL = "INSERT INTO Player (first_name, last_name, address, province, postal_code, phone_number) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+             ) {
+            insertPlayer(conn, firstName, lastName, address, postalCode, province, phoneNumber);
+        }
+    }
+
+    public void insertPlayer(Connection conn, String firstName, String lastName, String address, String postalCode, String province, String phoneNumber) throws SQLException {
+        String insertSQL = "INSERT INTO Player (first_name, last_name, address, province, postal_code, phone_number) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
             pstmt.setString(1, firstName);
             pstmt.setString(2, lastName);
             pstmt.setString(3, address);
@@ -44,9 +50,15 @@ public class PlayerDao {
     }
 
     public boolean existsById(int playerId) throws SQLException {
-        String checkPlayerSQL = "SELECT COUNT(*) AS count FROM Player WHERE player_id = ?";
         try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement checkStmt = conn.prepareStatement(checkPlayerSQL)) {
+             ) {
+            return existsById(conn, playerId);
+        }
+    }
+
+    public boolean existsById(Connection conn, int playerId) throws SQLException {
+        String checkPlayerSQL = "SELECT COUNT(*) AS count FROM Player WHERE player_id = ?";
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkPlayerSQL)) {
             checkStmt.setInt(1, playerId);
             try (ResultSet rs = checkStmt.executeQuery()) {
                 return rs.next() && rs.getInt("count") > 0;
@@ -55,13 +67,19 @@ public class PlayerDao {
     }
 
     public void updatePlayer(int playerId, String firstName, String lastName, String address, String province, String postalCode, String phoneNumber) throws SQLException {
+        try (Connection conn = DatabaseConnectionManager.getConnection();
+             ) {
+            updatePlayer(conn, playerId, firstName, lastName, address, province, postalCode, phoneNumber);
+        }
+    }
+
+    public void updatePlayer(Connection conn, int playerId, String firstName, String lastName, String address, String province, String postalCode, String phoneNumber) throws SQLException {
         String updatePlayerSQL = """
                 UPDATE Player
                 SET first_name = ?, last_name = ?, address = ?, province = ?, postal_code = ?, phone_number = ?
                 WHERE player_id = ?
                 """;
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(updatePlayerSQL)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(updatePlayerSQL)) {
             pstmt.setString(1, firstName);
             pstmt.setString(2, lastName);
             pstmt.setString(3, address);
@@ -74,9 +92,15 @@ public class PlayerDao {
     }
 
     public int fetchLastInsertedPlayerId() throws SQLException {
-        String query = "SELECT MAX(player_id) AS last_id FROM Player";
         try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query);
+             ) {
+            return fetchLastInsertedPlayerId(conn);
+        }
+    }
+
+    public int fetchLastInsertedPlayerId(Connection conn) throws SQLException {
+        String query = "SELECT MAX(player_id) AS last_id FROM Player";
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt("last_id");
@@ -86,9 +110,15 @@ public class PlayerDao {
     }
 
     public void deletePlayerById(int playerId) throws SQLException {
-        String deletePlayerSQL = "DELETE FROM Player WHERE player_id = ?";
         try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement deleteStmt = conn.prepareStatement(deletePlayerSQL)) {
+             ) {
+            deletePlayerById(conn, playerId);
+        }
+    }
+
+    public void deletePlayerById(Connection conn, int playerId) throws SQLException {
+        String deletePlayerSQL = "DELETE FROM Player WHERE player_id = ?";
+        try (PreparedStatement deleteStmt = conn.prepareStatement(deletePlayerSQL)) {
             deleteStmt.setInt(1, playerId);
             deleteStmt.executeUpdate();
         }
